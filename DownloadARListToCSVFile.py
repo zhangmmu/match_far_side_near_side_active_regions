@@ -14,7 +14,7 @@ def processOneTxtURL(txt_url, starting_line_num=7):
             soup = BeautifulSoup(response.content, "html.parser")
             text = response.text
             lines = text.splitlines() # convert text file to list
-
+            print(lines)
             # if there is strong active region, then lines should be greater than 8
             if len(lines) > starting_line_num:
                 print('File: ',txt_url,'is processing')
@@ -57,7 +57,7 @@ def processAllTxtURL(url, starting_line_num=7):
         href = link.get("href")
         hrefText = href[:-1]
 
-        if (len(hrefText) == 4) and (str.isdigit(hrefText)) and (int(hrefText) in range(2010,2023)):
+        if (len(hrefText) == 4) and (str.isdigit(hrefText)) and (int(hrefText) in range(2010,2024)):
             try:
                 sub_url = url+href
                 sub_response = requests.get(sub_url)

@@ -1,44 +1,47 @@
 #One far side active region
 class FarSideAR:
 
-    def __init__ (self, data_string, timestamp, txt_url):
+    def __init__ (self, data_string, timestamp, txt_url, image_url):
          # default split by white spaces
         dataList = data_string.split()
         if len(dataList) >= 6:
              #'designation', 'longitude', 'latitude', 'strength', 'eta at east limb', 'days from east limb','Timestamp'
 
             self.designation = dataList[0]
-            self.center_long= dataList[1]
-            self.center_lat = dataList[2]
+            self.cen_long= dataList[1]
+            self.cen_lat = dataList[2]
             self.strength = dataList[3]
             self.eta_at_east_limb = dataList[4]
             self.days_from_east_limb = dataList[5]
             self.timestamp = timestamp
             self.txt_url = txt_url
-
+            self.image_url = image_url
+            self.inside_far_side = 0
 
     def getURLDataArray(self):
-        return [self.designation, self.center_long, self.center_lat, \
+        return [self.designation, self.cen_long, self.cen_lat, \
                 self.strength, self.eta_at_east_limb, self.days_from_east_limb, self.timestamp, self.txt_url]
 
 
     def getDataArray (self):
-        return [self.designation, self.timestamp, self.center_long, self.center_lat, \
+        return [self.designation, self.timestamp, self.cen_long, self.cen_lat, \
                 self.minX, self.minY, self.maxX, self.maxY, \
                 self.strength, self.eta_at_east_limb,\
-                self.days_from_east_limb, self.center_blue, self.center_gree, self.center_red, self.txt_url]
+                self.days_from_east_limb, self.cen_blue, self.cen_green, self.cen_red, \
+                self.inside_far_side,
+                self.txt_url, self.image_url]
 
 
     def setDesignation (self, designation):
         self.designation = designation
 
 
-    def setcenter_long (self, center_long):
-        self.center_long = center_long
+    def setcen_long (self, cen_long):
+        self.cen_long = cen_long
 
 
-    def setcenter_lat (self, center_lat):
-        self.center_lat = center_lat
+    def setcen_lat (self, cen_lat):
+        self.cen_lat = cen_lat
 
 
     def setstrength (self, strength):
@@ -60,12 +63,14 @@ class FarSideAR:
     def settxt_url (self, txt_url):
         self.txt_url = txt_url
 
+    def setimage_url (self, image_url):
+        self.image_url = image_url
 
-    def setCenterColor (self, color):
+    def setCenColor (self, color):
         if len(color) > 2:
-            self.center_red = color[0]
-            self.center_gree = color[1]
-            self.center_blue = color[2]
+            self.cen_red = color[0]
+            self.cen_green = color[1]
+            self.cen_blue = color[2]
 
 
     def setMinMaxXY (self, points):
@@ -75,13 +80,16 @@ class FarSideAR:
             self.maxX = points[2]
             self.maxY = points[3]
 
+    def setInsideFarSide (self, inside_fs):
+         self.inside_far_side = inside_fs
 
-    #toString function for print
+    #toString functione for print
     def __str__(self):
-        return f'designation: {self.designation}, center_long: {self.center_long}, center_lat: {self.center_lat}, \
+        return f'designation: {self.designation}, cen_long: {self.cen_long}, cen_lat: {self.cen_lat}, \
                 strength: {self.strength}, eta_at_east_limb: {self.eta_at_east_limb}, \
                 days_from_east_limb:  {self.days_from_east_limb}, timestamp: {self.timestamp}, \
-                txt_url: {self.txt_url}'
+                inside_far_side: {self.inside_far_side}, \
+                txt_url: {self.txt_url}, image_url: {self.image_url}'
 
 
 

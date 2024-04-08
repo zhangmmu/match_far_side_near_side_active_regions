@@ -16,7 +16,7 @@ def getCropImageBoudary():
     end_image_x = 0
 
     # there are 3 URLs for each data point, 1 text file, 1 composite map and 1 strong active region map
-    strongARImageURL = 'http://jsoc.stanford.edu/data/farside/AR_Maps_JPEG/AR_MAP_2013.04.24_12:00:00.png'
+    strongARImageURL = 'http://jsoc.stanford.edu/data/farside/AR_Maps_JPEG/2015/AR_MAP_2015.01.17_12:00:00.png'
     req = urllib.request.urlopen(strongARImageURL)
 
     arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
@@ -79,6 +79,36 @@ def getCropImageBoudary():
 def SameColor (color1, color2):
     return (color1[0] == color2[0] and color1[1] == color2[1] and color1[2] == color2[2])
 
+def isFarSide(color):
+    if color[0] == 0 and color[1] == 0 and color[2] == 102:
+        return 1
+    else:
+        return 0
+
+#Not working due to the grid color
+def isInsideFarSideRegion(resized_map, lat, lon):
+    if resized_map is not None:
+        height = resized_map.shape[0]
+        width = resized_map.shape[1]
+        isInsidefarSideRegion = 0
+
+    if lat < 178 and lat > 1 and lon < 356:
+
+        rightside_color1 = resized_map[lat + 90, lon + 1]
+        rightside_color2 = resized_map[lat + 90, lon + 2]
+        rightside_color3 = resized_map[lat + 90, lon + 3]
+
+        if isFarSide(rightside_color1) or isFarSide(rightside_color2) or isFarSide(rightside_color3):
+            isInsidefarSideRegion = 1
+
+        if isInsidefarSideRegion == 0:
+            rightside_color4 = resized_map[lat + 90 -1 , lon + 1]
+            rightside_color5 = resized_map[lat + 90,     lon + 1]
+            rightside_color6 = resized_map[lat + 90 + 1, lon + 1]
+            if isFarSide(rightside_color4) or isFarSide(rightside_color5) or isFarSide(rightside_color6):
+                isInsidefarSideRegion = 1
+    return isInsidefarSideRegion
+
 # Return the iamge we will process by cropping out the AR_MAP image
 def cropImage(strongARImageURL, mainImageMinMaxXY):
 
@@ -109,7 +139,8 @@ def cropImage(strongARImageURL, mainImageMinMaxXY):
 
 # Main function to process all images and save into a csv file.
 #
-def procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, centerLon, centerLan):
+def procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, cenLon, cenLat):
+
     # Store all active region data in a dictionary
     FS_Centroid = None
 
@@ -118,17 +149,17 @@ def procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, centerLon, centerL
     if resized_map is not None:
 
         FS_Centroid = {}
-        cenLon = int(float(centerLon))
+        cenLon = int(float(cenLon))
         # The map longtitude starts form 180, so convert to current longtitude
-        cenLan = 90 - int(float(centerLan))
+        cenLat = 90 - int(float(cenLat))
 
-        if cenLan >= 180:
-            cenLan = 179
+        if cenLat >= 180:
+            cenLat = 179
         if cenLon >= 360:
             cenLon = 359
-        cenColor = resized_map[cenLan, cenLon]
+        cenColor = resized_map[cenLat, cenLon]
 
-        FS_Centroid[fs_name] = {'Centroid':(centerLon, centerLon), 'Color': cenColor, 'Location': []}
+        FS_Centroid[fs_name] = {'Centroid':(cenLat, cenLon), 'Color': cenColor, 'Location': [], 'Inside_Far_Side': 0}
         height = resized_map.shape[0]
         width = resized_map.shape[1]
 
@@ -147,6 +178,8 @@ def procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, centerLon, centerL
         # Crop the color block
         for fs in FS_Centroid:
             location = FS_Centroid[fs]['Location']
+            insideFS = 0
+
             if len(location) > 0:
                 minX = 360
                 maxX = 0
@@ -159,20 +192,59 @@ def procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, centerLon, centerL
 
                     if x < minX:
                         minX = x
-                    if x > maxX:
+
+                    #sometimes, one active region can be divided into two by the far side line
+                    if x > maxX and x < minX + 100:
                         maxX = x
+
                     if y < minY:
                         minY = y
                     if y > maxY:
                         maxY = y
 
+            #check if it touches the east limb by compare color with far side background color [0,0,102]
+
+
+
+            if maxX < 353 and cenLat < 172:
+
+                newLat = cenLat
+                newLon = maxX + 1
+
+                #avoid the grid color [122, 0, 127]
+                for i in range (3):
+                    newcolor = resized_map[newLat, newLon]
+                    if newcolor[0] == 122 and newcolor[1] == 0 and newcolor[1] == 127:
+                        newLat = newLat + 1
+                        newLon = newLon + 1
+
+                rightside_color1 = resized_map[newLat, newLon]
+                rightside_color2 = resized_map[newLat, newLon + 1]
+                rightside_color3 = resized_map[newLat, newLon + 2]
+
+                if isFarSide(rightside_color1) or isFarSide(rightside_color2) or isFarSide(rightside_color3):
+                    insideFS = 1
+
+
+         #       if maxX < 356:
+         #           for index in range(maxY-minY):
+         #               locationY = minY + index
+         #               rightside_color1 = resized_map[locationY, maxX+1]
+         #               rightside_color2 = resized_map[locationY, maxX+2]
+         #               rightside_color3 = resized_map[locationY, maxX+3]
+
+         #               if SameColor(rightside_color1, [0, 0, 102]) or SameColor(rightside_color2, [0, 0, 102]) or SameColor(rightside_color3, [0, 0, 102]):
+         #                   FS_Centroid[fs]['Inside_Far_Side'].append(1)
+         #               else:
+         #                   FS_Centroid[fs]['Inside_Far_Side'].append(0)
+
                 #convert back to -90 to 90 latitude
-                newMinY = 90-(maxY+1)
-                newMaxY = 90-(minY-1)
-                print(minX -1, 90 -(minY -1), maxX +1, maxY +1, newMinY, newMaxY)
-
-                FS_Centroid[fs]['border'] = [minX -1, newMinY, maxX +1, newMaxY]
-
+            newMinY = 90-(maxY+1)
+            newMaxY = 90-(minY-1)
+            #print(minX -1, 90 -(minY -1), maxX +1, maxY +1, newMinY, newMaxY)
+            FS_Centroid[fs]['border'] = [minX -1, newMinY, maxX +1, newMaxY]
+            print(FS_Centroid[fs]['border'], ', Inside Far Side: ', insideFS)
+            FS_Centroid[fs]['Inside_Far_Side'] = insideFS
     return FS_Centroid
 
 # Defining main function
@@ -205,34 +277,36 @@ def main():
                 print(strongARImageURL)
                 for index, row in one_image_data.iterrows():
                     fs_name = row['designation']
-                    center_lon = row['longitude']
-                    center_lat = row['latitude']
-                    print(fs_name + '/' + str(center_lon) + '/' + str(center_lat))
-                    FS_Centroid = procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, center_lon, center_lat)
+                    cen_lon = row['longitude']
+                    cen_lat = row['latitude']
+
+                    FS_Centroid = procesImage(strongARImageURL, mainImageMinMaxXY, fs_name, cen_lon, cen_lat)
 
                     if FS_Centroid is not None:
-                        far_side_ar = FarSideAR('', row['Timestamp'], txtURL)
+                        far_side_ar = FarSideAR('', row['Timestamp'], txtURL, strongARImageURL)
                         far_side_ar.setDesignation(fs_name)
-                        far_side_ar.setcenter_long(center_lon)
-                        far_side_ar.setcenter_lat(center_lat)
+                        far_side_ar.setcen_long(cen_lon)
+                        far_side_ar.setcen_lat(cen_lat)
                         far_side_ar.setstrength(str(row['strength']))
                         far_side_ar.seteta_at_east_limb(row['eta at east limb'])
                         far_side_ar.setdays_from_east_limb(row['days from east limb'])
                         far_side_ar.settimestamp(row['Timestamp'])
                         far_side_ar.settxt_url(txtURL)
+                        far_side_ar.setimage_url(strongARImageURL)
 
-                        #set center color
-                        far_side_ar.setCenterColor(FS_Centroid[fs_name]['Color'])
+                        #set centroid color
+                        far_side_ar.setInsideFarSide(FS_Centroid[fs_name]['Inside_Far_Side'])
+                        far_side_ar.setCenColor(FS_Centroid[fs_name]['Color'])
                         far_side_ar.setMinMaxXY(FS_Centroid[fs_name]['border'])
+
                         year_array.append(far_side_ar.getDataArray())
                         print(far_side_ar)
-                        #print(FS_Centroid);
 
 
-        dataframe = pd.DataFrame(year_array, columns=['designation', 'timestamp', 'center_longitude', 'center_latitude',
-                                               'minX', 'minY', 'maxX', 'maxY', 'strength',
-                                               'eta at east limb', 'days from east limb',
-                                               'center_red','center_green', 'center_blue', 'txt_url'])
+        dataframe = pd.DataFrame(year_array, columns=['designation', 'timestamp', 'cen_long', 'cen_lat',
+                                               'minX', 'minY', 'maxX', 'maxY', 'strength', 'eta at east limb',
+                                               'days from east limb', 'cen_red','cen_green', 'cen_blue',
+                                               'inside_far_side','txt_url', 'image_url'])
         dataframe.to_csv(output_file_name, index = False)
 
 # Using the special variable
